@@ -19,6 +19,8 @@
 package pl.edu.icm.cermine.structure.model;
 
 import java.util.*;
+
+import org.jdom.Element;
 import pl.edu.icm.cermine.tools.CountMap;
 
 /**
@@ -32,6 +34,13 @@ public class BxWord extends BxObject<BxChunk, BxWord, BxLine> {
 
     /** list of word's chunks */
     private final List<BxChunk> chunks = new ArrayList<BxChunk>();
+    public String sConjunction = " ";
+    public String sPage = null;
+
+    public void setPage(String sPage)
+    {
+        this.sPage = sPage;
+    }
 
 
     public BxWord setChunks(Collection<BxChunk> chunks) {
@@ -52,6 +61,28 @@ public class BxWord extends BxObject<BxChunk, BxWord, BxLine> {
             chunk.setParent(this);
         }
         return this;
+    }
+
+    public Element toElement()
+    {
+
+        Element oRetElem = new Element("pos");
+        oRetElem.setText(this.toText());
+
+        if (this.sConjunction.length() == 0)
+        {
+            oRetElem.setAttribute("nosep", "true");
+        }
+
+        oRetElem.setAttribute("page", "" + this.sPage);
+        oRetElem.setAttribute("x1", ""+this.getBounds().getX());
+        oRetElem.setAttribute("y1", ""+this.getBounds().getY());
+
+        oRetElem.setAttribute("x2", ""+(this.getBounds().getX() + this.getBounds().getWidth()));
+        oRetElem.setAttribute("y2", ""+(this.getBounds().getY()+this.getBounds().getHeight()));
+
+        return oRetElem;
+
     }
 
     @Override

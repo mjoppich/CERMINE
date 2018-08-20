@@ -161,7 +161,7 @@ public abstract class BxObject <C, T, P> implements Indexable<T>, Iterable<C>, P
         return text;
     }
 
-    protected void setText(String text) {
+    public void setText(String text) {
         this.text = text;
     }
     

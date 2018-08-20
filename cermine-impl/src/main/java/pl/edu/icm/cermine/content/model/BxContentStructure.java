@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import pl.edu.icm.cermine.structure.model.BxLine;
 import pl.edu.icm.cermine.structure.model.BxPage;
+import pl.edu.icm.cermine.structure.model.BxWord;
 import pl.edu.icm.cermine.tools.classification.general.FeatureVector;
 import pl.edu.icm.cermine.tools.classification.general.FeatureVectorBuilder;
 
@@ -104,7 +105,14 @@ public class BxContentStructure {
 
         private List<BxLine> contentLines = new ArrayList<BxLine>();
         private List<String> cleanContentTexts = new ArrayList<String>();
+        private ArrayList<ArrayList<BxLine>> cleanContentLines = new ArrayList<ArrayList<BxLine>>();
+        private ArrayList<ArrayList<BxWord>> cleanContentWords = new ArrayList<ArrayList<BxWord>>();
 
+
+        public BxPage getPage()
+        {
+            return page;
+        }
         
         public BxDocContentPart(BxPage page, BxLine firstHeaderLine) {
             this.page = page;
@@ -152,8 +160,20 @@ public class BxContentStructure {
             return contentLines;
         }
 
-        public void setContentLines(List<BxLine> contentLines) {
-            this.contentLines = contentLines;
+        public void setCleanContentLines(ArrayList<ArrayList<BxLine>> cleanContentLines) {
+            this.cleanContentLines = cleanContentLines;
+        }
+
+        public ArrayList<ArrayList<BxLine>> getCleanContentLines() {
+            return this.cleanContentLines;
+        }
+
+        public void setCleanContentWords(ArrayList<ArrayList<BxWord>> cleanContentWords) {
+            this.cleanContentWords = cleanContentWords;
+        }
+
+        public ArrayList<ArrayList<BxWord>> getCleanContentWords() {
+            return this.cleanContentWords;
         }
 
         public List<BxLine> getHeaderLines() {

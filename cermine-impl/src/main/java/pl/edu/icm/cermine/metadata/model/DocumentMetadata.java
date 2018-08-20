@@ -25,6 +25,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import pl.edu.icm.cermine.content.cleaning.ContentCleaner;
+import pl.edu.icm.cermine.structure.model.BxLine;
 import pl.edu.icm.cermine.tools.timeout.TimeoutRegister;
 
 /**
@@ -202,12 +203,19 @@ public class DocumentMetadata {
         this.volume = volume;
     }
 
+    public List<BxLine> getAbstractLines() {
+        return abstractLines;
+    }
+
     public String getAbstrakt() {
         return abstrakt;
     }
 
-    public void setAbstrakt(String abstrakt) {
+    protected List<BxLine> abstractLines;
+
+    public void setAbstrakt(String abstrakt, List<BxLine> abstractLines) {
         this.abstrakt = abstrakt;
+        this.abstractLines = abstractLines;
     }
 
     public void addEditor(String editorName) {

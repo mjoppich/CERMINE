@@ -18,6 +18,9 @@
 
 package pl.edu.icm.cermine.content.model;
 
+import pl.edu.icm.cermine.structure.model.BxLine;
+import pl.edu.icm.cermine.structure.model.BxWord;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +34,8 @@ public class DocumentSection {
     private String title;
     
     private final List<String> paragraphs = new ArrayList<String>();
+    private final ArrayList<ArrayList<BxLine>> contentLines = new ArrayList<ArrayList<BxLine>>();
+    private final ArrayList<ArrayList<BxWord>> contentWords = new ArrayList<ArrayList<BxWord>>();
     
     private final List<DocumentSection> subsections = new ArrayList<DocumentSection>();
 
@@ -57,9 +62,23 @@ public class DocumentSection {
     public List<String> getParagraphs() {
         return paragraphs;
     }
+    public ArrayList<ArrayList<BxLine>> getParagraphLines() {
+        return contentLines;
+    }
+    public ArrayList<ArrayList<BxWord>> getParagraphWords() {
+        return contentWords;
+    }
 
     public void addParagraph(String paragraph) {
         paragraphs.add(paragraph);
+    }
+
+    public void addParagraphLines(ArrayList<BxLine> paragraph) {
+        contentLines.add(paragraph);
+    }
+
+    public void addParagraphWords(ArrayList<BxWord> paragraph) {
+        contentWords.add(paragraph);
     }
 
     public int getLevel() {
@@ -77,5 +96,6 @@ public class DocumentSection {
     public void setTitle(String title) {
         this.title = title;
     }
+
     
 }

@@ -52,10 +52,16 @@ public class DescriptionEnhancer extends AbstractSimpleEnhancer {
         for (BxPage page : filterPages(document)) {
             for (BxZone zone : filterZones(page)) {
                 for (BxLine line : zone) {
+                    for (BxWord word : line)
+                    {
+                        word.setPage(page.getId());
+                    }
                     lines.add(line);
                 }
             }
         }
+
+        ArrayList<BxLine> usedLines = new ArrayList<>();
         
         StringBuilder sb = new StringBuilder();
         BxLine prev = null;
@@ -65,6 +71,7 @@ public class DescriptionEnhancer extends AbstractSimpleEnhancer {
                 || normalized.startsWith("a b s t r a c t")
                 || normalized.startsWith("article info")) {
                 sb = new StringBuilder();
+                usedLines = new ArrayList<>();
             }
             if (normalized.startsWith("keywords")
                 || normalized.startsWith("key words")
@@ -81,6 +88,7 @@ public class DescriptionEnhancer extends AbstractSimpleEnhancer {
             }
             sb.append("\n");
             sb.append(line.toText().trim());
+            usedLines.add(line);
             prev = line;
         }
 
@@ -90,7 +98,7 @@ public class DescriptionEnhancer extends AbstractSimpleEnhancer {
             if (matcher.find()) {
                 text = text.substring(matcher.end()).trim();
             }
-            metadata.setAbstrakt(text);
+            metadata.setAbstrakt(text, usedLines);
             return true;
         }
         return false;

@@ -22,7 +22,9 @@ import java.util.ArrayList;
 import java.util.List;
 import pl.edu.icm.cermine.content.model.BxContentStructure;
 import pl.edu.icm.cermine.content.model.BxContentStructure.BxDocContentPart;
+import pl.edu.icm.cermine.structure.model.BxChunk;
 import pl.edu.icm.cermine.structure.model.BxLine;
+import pl.edu.icm.cermine.structure.model.BxWord;
 
 /**
  * @author Dominika Tkaczyk (d.tkaczyk@icm.edu.pl)
@@ -70,7 +72,11 @@ public class ContentCleaner {
             
             List<BxLine> contentLines = contentPart.getContentLines();
             List<String> contentTexts = new ArrayList<String>();
-            
+
+            ArrayList<ArrayList<BxLine>> contentTextLines = new ArrayList<ArrayList<BxLine>>();
+            ArrayList<ArrayList<BxWord>> contentTextWords = new ArrayList<ArrayList<BxWord>>();
+
+
             double maxLen = Double.NEGATIVE_INFINITY;
             for (BxLine line : contentLines) {
                 if (line.getWidth() > maxLen) {
@@ -79,6 +85,10 @@ public class ContentCleaner {
             }
             
             String contentText = "";
+            ArrayList<BxLine> textLines = new ArrayList<BxLine>();
+            ArrayList<BxWord> lineWords = new ArrayList<BxWord>();
+            boolean bDashRemoved = false;
+
             for (BxLine line : contentLines) {
                 int score = 0;
                 BxLine prev = line.getPrev();
@@ -106,30 +116,172 @@ public class ContentCleaner {
                 if (score >= firstParagraphLineMinScore) {
                     if (!contentText.isEmpty()) {
                         contentTexts.add(cleanLigatures(contentText.trim()));
+                        contentTextLines.add(textLines);
+
+                        // get last BxWord
+                        BxWord oLWord = lineWords.get(lineWords.size()-1);
+                        oLWord.setText(oLWord.toText().trim());
+
+                        for (BxWord oWord: lineWords)
+                        {
+                            oWord.setText(cleanLigatures(oWord.toText()));
+                        }
+
+                        contentTextWords.add(lineWords);
+
+
                     }
                     contentText = "";
+                    bDashRemoved = false;
+                    textLines = new ArrayList<BxLine>();
+                    lineWords = new ArrayList<BxWord>();
                 }
                 
                 String lineText = line.toText();
+                ArrayList<BxWord> tlineWords = new ArrayList<>();
+                for (BxWord oWord : line)
+                {
+                    oWord.setPage( contentPart.getPage().getId() );
+                    tlineWords.add(oWord);
+                }
+
+                textLines.add(line);
+
                 if (lineText.endsWith("-")) {
                     lineText = lineText.substring(0, lineText.length()-1);
-                    if (lineText.lastIndexOf(' ') < 0) {
-                        contentText += lineText;
-                    } else {
-                        contentText += lineText.substring(0, lineText.lastIndexOf(' '));
-                        contentText += "\n";
-                        contentText += lineText.substring(lineText.lastIndexOf(' ')+1);
+
+                    BxWord oLWord = tlineWords.get(tlineWords.size()-1);
+                    String oLWordT = oLWord.toText();
+
+                    if (oLWordT.endsWith("-"))
+                    {
+                        oLWordT = oLWordT.substring(0, oLWordT.length()-1);
+                        oLWord.setText(oLWordT);
+                        oLWord.sConjunction = "";
                     }
+
+
+
+                    if (lineText.lastIndexOf(' ') < 0) {
+
+                        // there is no blank in this line, therefore we can take everything!
+
+                        contentText += lineText;
+                        // all words are taken
+                        lineWords.addAll(tlineWords);
+
+                    } else {
+
+                        // there is a blank in this line
+                        // we must find the blank and split the word (if within a word)
+
+                        contentText += lineText.substring(0, lineText.lastIndexOf(' '));
+                        contentText += " ";
+                        contentText += lineText.substring(lineText.lastIndexOf(' ')+1);
+
+                        BxWord oLastWordWithBlank = null;
+
+                        for (BxWord oWord: tlineWords)
+                        {
+                            if (oWord.toText().contains(" "))
+                            {
+                                oLastWordWithBlank = oWord;
+                            }
+                        }
+
+                        // add all words up to last word with blank
+
+                        for (BxWord oWord: tlineWords)
+                        {
+                            if (oWord == oLastWordWithBlank)
+                            {
+                                break;
+                            }
+
+                            lineWords.add(oWord);
+                        }
+
+
+                        if (oLastWordWithBlank != null)
+                        {
+
+                            List<BxChunk> allChunks = new ArrayList<BxChunk>();
+                            for (BxChunk oChunk: oLastWordWithBlank)
+                            {
+                                allChunks.add(oChunk);
+                            }
+
+                            // split last word
+                            BxWord oFirstPart = new BxWord();
+                            oFirstPart.setChunks(allChunks);
+                            oFirstPart.toText();
+                            oFirstPart.setBounds(oLastWordWithBlank.getBounds());
+
+                            BxWord oSecondPart = new BxWord();
+                            oSecondPart.setChunks(allChunks);
+                            oSecondPart.toText();
+                            oSecondPart.setBounds(oLastWordWithBlank.getBounds());
+
+                            String sPrefixPart = oLastWordWithBlank.toText().substring(0, lineText.lastIndexOf(' '));
+                            String sSuffixPart = oLastWordWithBlank.toText().substring(lineText.lastIndexOf(' ')+1);
+
+                            oFirstPart.setText(sPrefixPart);
+                            oSecondPart.setText(sSuffixPart);
+
+                            oFirstPart.sConjunction = "";
+
+                            lineWords.add(oFirstPart);
+                            lineWords.add(oSecondPart);
+
+
+                            // add remaining words
+                            int iIdx = tlineWords.indexOf(oLastWordWithBlank);
+
+                            for (int i = iIdx+1; i < tlineWords.size(); ++i)
+                            {
+                                lineWords.add(tlineWords.get(i));
+                            }
+
+                        }
+
+
+                    }
+
                 } else {
-                    contentText += lineText;
-                    contentText += "\n";
+
+                    contentText += lineText + " ";
+                    lineWords.addAll(tlineWords);
+
+                    //contentText += "\n";
                 }
             }
+
             if (!contentText.isEmpty()) {
                 contentTexts.add(cleanLigatures(contentText.trim()));
+                contentTextLines.add(textLines);
+
+                // get last BxWord
+                BxWord oLWord = lineWords.get(lineWords.size()-1);
+
+                String sTrimmed =oLWord.toText().trim();
+
+                if (sTrimmed.length() != oLWord.toText().length())
+                {
+                    oLWord.setText(sTrimmed);
+                }
+
+                for (BxWord oWord: lineWords)
+                {
+                    oWord.setText(cleanLigatures(oWord.toText()));
+                }
+
+                contentTextWords.add(lineWords);
+
             }
             
             contentPart.setCleanContentTexts(contentTexts);
+            contentPart.setCleanContentLines(contentTextLines);
+            contentPart.setCleanContentWords(contentTextWords);
         }
     }
     

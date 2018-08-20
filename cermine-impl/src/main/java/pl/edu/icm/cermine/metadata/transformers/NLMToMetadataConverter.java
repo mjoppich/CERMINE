@@ -72,7 +72,7 @@ public class NLMToMetadataConverter implements ModelToModelConverter<Element, Do
         XPath xpath = XPath.newInstance("./article-meta//abstract");
         Element abstrakt = (Element)xpath.selectSingleNode(source);
         if (abstrakt != null) {
-            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt));
+            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt), null);
         }
     }
     

@@ -27,6 +27,8 @@ import pl.edu.icm.cermine.exception.TransformationException;
 import pl.edu.icm.cermine.metadata.affiliation.tools.CountryISOCodeFinder;
 import pl.edu.icm.cermine.metadata.model.*;
 import pl.edu.icm.cermine.parsing.model.Token;
+import pl.edu.icm.cermine.structure.model.BxLine;
+import pl.edu.icm.cermine.structure.model.BxWord;
 import pl.edu.icm.cermine.tools.XMLTools;
 import pl.edu.icm.cermine.tools.transformers.ModelToModelConverter;
 
@@ -124,7 +126,10 @@ public class MetadataToNLMConverter implements ModelToModelConverter<DocumentMet
         }
 
         String[] abstractPath = new String[]{TAG_ABSTRACT, TAG_P};
-        addElement(metadata, abstractPath, source.getAbstrakt());
+
+
+        // adds abstract
+        addAbstractElement(metadata, abstractPath, source.getAbstrakt(), source.getAbstractLines());
        
         if (!source.getKeywords().isEmpty()) {
             Element keywords = new Element(TAG_KWD_GROUP);
@@ -207,6 +212,33 @@ public class MetadataToNLMConverter implements ModelToModelConverter<DocumentMet
         addElement(historyDate, TAG_MONTH, date.getMonth());
         addElement(historyDate, TAG_YEAR, date.getYear());
         return historyDate;
+    }
+
+    private void addAbstractElement(Element parent, String[] names, String text, List<BxLine> abstractLines) {
+        if (text != null && names.length != 0) {
+            Element prev = parent;
+            for (String name : names) {
+                Element element = new Element(name);
+                prev.addContent(element);
+                prev = element;
+            }
+
+            if (abstractLines !=  null)
+            {
+                for (BxLine abstractLine : abstractLines)
+                {
+                    for (BxWord oWord : abstractLine) {
+
+                        prev.addContent(oWord.toElement());
+
+                    }
+                }
+            } else {
+                prev.setText(XMLTools.removeInvalidXMLChars(text));
+            }
+
+
+        }
     }
 
     private void addElement(Element parent, String[] names, String text) {

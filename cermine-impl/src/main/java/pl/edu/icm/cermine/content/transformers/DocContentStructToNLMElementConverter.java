@@ -30,6 +30,8 @@ import pl.edu.icm.cermine.content.model.ContentStructure;
 import pl.edu.icm.cermine.content.model.DocumentSection;
 import pl.edu.icm.cermine.exception.TransformationException;
 import pl.edu.icm.cermine.structure.model.BxImage;
+import pl.edu.icm.cermine.structure.model.BxLine;
+import pl.edu.icm.cermine.structure.model.BxWord;
 import pl.edu.icm.cermine.tools.Pair;
 import pl.edu.icm.cermine.tools.XMLTools;
 import pl.edu.icm.cermine.tools.transformers.ModelToModelConverter;
@@ -100,7 +102,7 @@ public class DocContentStructToNLMElementConverter implements ModelToModelConver
                     }
                 });
             }
-            element.addContent(toHTMLParagraph(paragraph, positionList));
+            element.addContent(toHTMLParagraph(paragraph, positionList, part, i));
         }
         for (DocumentSection subpart : part.getSubsections()) {
             element.addContent(toHTML(subpart, positions));
@@ -115,10 +117,41 @@ public class DocContentStructToNLMElementConverter implements ModelToModelConver
         return element;
     }
     
-    public Element toHTMLParagraph(String paragraph, List<Pair<Integer, CitationPosition>> positions) {
+    public Element toHTMLParagraph(String paragraph, List<Pair<Integer, CitationPosition>> positions,DocumentSection part, int iPar) {
         Element element = new Element("p");
         int lastParIndex = 0;
         int posIndex = 0;
+
+        ArrayList<String> allStrLineWords = new ArrayList<>();
+        List<BxWord> allStrWords = part.getParagraphWords().get(iPar);
+        String sParFromWords = "";
+
+
+        ArrayList<Integer> vPos2Word = new ArrayList<Integer>();
+
+        int iWordIdx = 0;
+        for (BxWord oWord: allStrWords)
+        {
+            String newWord = oWord.toText() + oWord.sConjunction;
+            sParFromWords += newWord;
+
+            for (int s=0; s < newWord.length(); ++s)
+            {
+                vPos2Word.add(iWordIdx);
+            }
+
+            iWordIdx += 1;
+        }
+
+        /*
+        System.out.println(sParFromWords);
+        System.out.println(paragraph);
+        */
+
+        assert(sParFromWords.length() == paragraph.length());
+
+        int iLastWordIdx = 0;
+
         while (posIndex < positions.size()) {
             CitationPosition position = positions.get(posIndex).getSecond();
             int start = position.getStartRefPosition();
@@ -128,7 +161,40 @@ public class DocContentStructToNLMElementConverter implements ModelToModelConver
             while (++posIndex < positions.size() && positions.get(posIndex).getSecond().getStartRefPosition() == start) {
                 citationIndices.add(positions.get(posIndex).getFirst()+1);
             }
-            element.addContent(XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex, start)));
+
+            if (part == null)
+            {
+                element.addContent(XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex, start)));
+            } else {
+
+                String sThisTextBlock = XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex, start));
+                //element.addContent(sThisTextBlock);
+
+                int iStartWordIdx = vPos2Word.get(lastParIndex)+1;
+                int iEndWordIdx = vPos2Word.get(start);
+
+
+                if (iStartWordIdx < 0)
+                {
+                    iStartWordIdx = 0;
+                }
+
+                if (iEndWordIdx > allStrWords.size())
+                {
+                    iEndWordIdx = allStrWords.size();
+                }
+
+                for (int i = iStartWordIdx; i < iEndWordIdx; ++i)
+                {
+                    BxWord oWord = allStrWords.get(i);
+                    element.addContent(oWord.toElement());
+                }
+
+                //System.out.println( vPos2Word.get(lastParIndex) + " " + vPos2Word.get(start) );
+
+            }
+
+
             Element ref = new Element("xref");
             ref.setAttribute("ref-type", "bibr");
             List<String> rids = new ArrayList<String>();
@@ -141,7 +207,15 @@ public class DocContentStructToNLMElementConverter implements ModelToModelConver
             element.addContent(ref);
             lastParIndex = end;
         }
-        element.addContent(XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex)));
+
+        //element.addContent(XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex)));
+
+        for (int i = lastParIndex; i < allStrWords.size(); ++i)
+        {
+            BxWord oWord = allStrWords.get(i);
+            element.addContent(oWord.toElement());
+        }
+
         return element;
     }
   

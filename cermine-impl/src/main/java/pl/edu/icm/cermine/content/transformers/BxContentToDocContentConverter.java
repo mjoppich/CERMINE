@@ -25,6 +25,8 @@ import pl.edu.icm.cermine.content.model.BxContentStructure.BxDocContentPart;
 import pl.edu.icm.cermine.content.model.ContentStructure;
 import pl.edu.icm.cermine.content.model.DocumentSection;
 import pl.edu.icm.cermine.exception.TransformationException;
+import pl.edu.icm.cermine.structure.model.BxLine;
+import pl.edu.icm.cermine.structure.model.BxWord;
 import pl.edu.icm.cermine.tools.transformers.ModelToModelConverter;
 
 /**
@@ -65,8 +67,16 @@ public class BxContentToDocContentConverter implements ModelToModelConverter<BxC
 
         section.setLevel(level);
         section.setTitle(contentParts.get(0).getCleanHeaderText());
-        for (String contentText : contentParts.get(0).getCleanContentTexts()) {
+
+        for (int i = 0; i < contentParts.get(0).getCleanContentTexts().size(); ++i)
+        {
+            String contentText = contentParts.get(0).getCleanContentTexts().get(i);
+            ArrayList<BxLine> contentLines = contentParts.get(0).getCleanContentLines().get(i);
+            ArrayList<BxWord> contentWords = contentParts.get(0).getCleanContentWords().get(i);
+
             section.addParagraph(contentText);
+            section.addParagraphLines(contentLines);
+            section.addParagraphWords(contentWords);
         }
 
         contentParts.remove(0);
