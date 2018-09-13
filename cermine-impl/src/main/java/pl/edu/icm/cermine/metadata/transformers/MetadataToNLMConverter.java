@@ -23,6 +23,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.jdom.Element;
+import pl.edu.icm.cermine.content.cleaning.ContentCleaner;
 import pl.edu.icm.cermine.exception.TransformationException;
 import pl.edu.icm.cermine.metadata.affiliation.tools.CountryISOCodeFinder;
 import pl.edu.icm.cermine.metadata.model.*;
@@ -225,14 +226,40 @@ public class MetadataToNLMConverter implements ModelToModelConverter<DocumentMet
 
             if (abstractLines !=  null)
             {
+                ArrayList<BxWord> vWords = new ArrayList<>();
                 for (BxLine abstractLine : abstractLines)
                 {
-                    for (BxWord oWord : abstractLine) {
 
-                        prev.addContent(oWord.toElement());
+                    String sLineText = abstractLine.toText();
+
+                    for (BxWord oWord : abstractLine) {
+                        vWords.add(oWord);
 
                     }
+
+                    if (sLineText.endsWith("-"))
+                    {
+                        BxWord oLast = vWords.get(vWords.size()-1);
+                        if (oLast.toText().endsWith("-"))
+                        {
+                            String sBefore = oLast.toText();
+                            oLast.setText(sBefore.substring(sBefore.length()-1));
+
+                            oLast.sConjunction = "";
+                        }
+
+                    }
+
                 }
+
+
+                for (BxWord oWord: vWords)
+                {
+                    oWord.setText(ContentCleaner.cleanLigatures(oWord.toText()));
+
+                    prev.addContent(oWord.toElement());
+                }
+
             } else {
                 prev.setText(XMLTools.removeInvalidXMLChars(text));
             }

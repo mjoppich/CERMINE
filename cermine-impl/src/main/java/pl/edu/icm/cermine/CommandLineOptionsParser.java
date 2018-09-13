@@ -46,6 +46,40 @@ public class CommandLineOptionsParser {
         options.addOption("strext", true, "structure file extension");
         options.addOption("configuration", true, "path to configuration file");
         options.addOption("timeout", true, "time in seconds");
+        options.addOption("chunkSize", true, "number of pdfs per chunk");
+        options.addOption("threads", true, "number of threads");
+    }
+
+    /**
+     * @return timeout in seconds; Null if no timeout is set.
+     */
+    public int getChunkSize() {
+        if (!commandLine.hasOption("chunkSize")) {
+            return 2;
+        } else {
+            Integer value = Integer.parseInt(commandLine.getOptionValue("chunkSize"));
+            if (value < 0) {
+                throw new RuntimeException("The 'chunkSize' value given as a "
+                        + "command line parameter has to be nonnegative.");
+            }
+            return value;
+        }
+    }
+
+    /**
+     * @return timeout in seconds; Null if no timeout is set.
+     */
+    public int getThreads() {
+        if (!commandLine.hasOption("threads")) {
+            return 2;
+        } else {
+            Integer value = Integer.parseInt(commandLine.getOptionValue("threads"));
+            if (value < 0) {
+                throw new RuntimeException("The 'threads' value given as a "
+                        + "command line parameter has to be nonnegative.");
+            }
+            return value;
+        }
     }
     
     public String parse(String[] args) throws ParseException {

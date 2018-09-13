@@ -21,8 +21,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
+
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.exception.ExceptionUtils;
@@ -33,8 +33,8 @@ import com.google.common.collect.Lists;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import javax.imageio.ImageIO;
 import org.jdom.DocType;
 import pl.edu.icm.cermine.bibref.model.BibEntry;
@@ -726,6 +726,145 @@ public class ContentExtractor {
         return Timeout.min(mainTimeout, local);
     }
 
+
+
+    public static class Task implements Runnable
+    {
+
+        private ArrayList<File> pdfList = null;
+        private Map<String, String> extensions = null;
+        private Long timeout = 60L;
+
+        public Task(ArrayList<File> inlist, Map<String, String> extensions, Long timeout)
+        {
+            this.pdfList = inlist;
+            this.extensions = extensions;
+
+            if (timeout != null)
+            {
+                this.timeout = timeout;
+            }
+
+        }
+
+        public void run()
+        {
+
+            long threadId = Thread.currentThread().getId();
+
+
+
+            for (File pdf: pdfList)
+            {
+
+                Map<String, File> outputs = new HashMap<String, File>();
+                for (Map.Entry<String, String> entry : extensions.entrySet()) {
+                    File outputFile = getOutputFile(pdf, entry.getValue());
+
+                    outputs.put(entry.getKey(), outputFile);
+                }
+                if (outputs.isEmpty()) {
+                    continue;
+                }
+
+                long start = System.currentTimeMillis();
+                float elapsed;
+
+                System.out.println("File processing: " + pdf.getPath() + " by thread # " + threadId );
+
+                ContentExtractor extractor = null;
+                try {
+                    extractor = createContentExtractor(60L);
+
+                    InputStream in = new FileInputStream(pdf);
+                    extractor.setPDF(in);
+
+                    if (outputs.containsKey("images")) {
+                        List<BxImage> images = extractor.getImages(outputs.get("images").getPath());
+                        FileUtils.forceMkdir(outputs.get("images"));
+                        for (BxImage image : images) {
+                            ImageIO.write(image.getImage(), "png", new File(image.getPath()));
+                        }
+                    }
+
+                    if (outputs.containsKey("jats")) {
+                        Element jats;
+                        if (outputs.containsKey("images")) {
+                            jats = extractor.getContentAsNLM(outputs.get("images").getPath());
+                        } else {
+                            jats = extractor.getContentAsNLM(null);
+                        }
+                        XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
+                        DocType dt = new DocType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.0 20120330//EN", "JATS-archivearticle1.dtd");
+                        FileUtils.writeStringToFile(outputs.get("jats"), outputter.outputString(dt), "UTF-8");
+                        FileUtils.writeStringToFile(outputs.get("jats"), "\n", "UTF-8", true);
+                        FileUtils.writeStringToFile(outputs.get("jats"), outputter.outputString(jats), "UTF-8", true);
+                    }
+
+                    if (outputs.containsKey("trueviz")) {
+                        BxDocument doc = extractor.getBxDocumentWithSpecificLabels();
+                        BxDocumentToTrueVizWriter writer = new BxDocumentToTrueVizWriter();
+                        Writer fw = new OutputStreamWriter(new FileOutputStream(outputs.get("trueviz")), "UTF-8");
+                        writer.write(fw, Lists.newArrayList(doc), "UTF-8");
+                    }
+
+                    if (outputs.containsKey("zones")) {
+                        Element text = extractor.getLabelledFullText();
+                        XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
+                        FileUtils.writeStringToFile(outputs.get("zones"), outputter.outputString(text), "UTF-8");
+                    }
+
+                    if (outputs.containsKey("text")) {
+                        String text = extractor.getRawFullText();
+                        FileUtils.writeStringToFile(outputs.get("text"), text, "UTF-8");
+                    }
+
+                    if (outputs.containsKey("bibtex")) {
+                        List<BibEntry> references = extractor.getReferences();
+                        for (BibEntry reference: references) {
+                            FileUtils.writeStringToFile(outputs.get("bibtex"), reference.toBibTeX(), "UTF-8", true);
+                            FileUtils.writeStringToFile(outputs.get("bibtex"), "\n", "UTF-8", true);
+                        }
+                    }
+
+                } catch (AnalysisException ex) {
+                    printException(ex);
+                } catch (TransformationException ex) {
+                    printException(ex);
+                } catch (TimeoutException ex) {
+                    printException(ex);
+                } catch (IOException ex) {
+                    printException(ex);
+                } finally {
+                    if (extractor != null) {
+                        extractor.removeTimeout();
+                    }
+                    long end = System.currentTimeMillis();
+                    elapsed = (end - start) / 1000F;
+                }
+
+
+
+                System.out.println("File done " + pdf.getAbsolutePath() + " by thread # " + threadId );
+                System.out.println("Extraction time: " + Math.round(elapsed) + "s");
+                System.out.println("");
+
+            }
+
+
+        }
+
+
+    }
+
+
+
+
+
+
+
+
+
     public static void main(String[] args) throws ParseException, AnalysisException, IOException, TransformationException {
         CommandLineOptionsParser parser = new CommandLineOptionsParser();
         String error = parser.parse(args);
@@ -762,6 +901,8 @@ public class ContentExtractor {
 
         boolean override = parser.override();
         Long timeoutSeconds = parser.getTimeout();
+        int iBatchSize = parser.getChunkSize();
+        int iThreads = parser.getThreads();
         
         String path = parser.getPath();
         Map<String, String> extensions = parser.getTypesAndExtensions();
@@ -776,100 +917,33 @@ public class ContentExtractor {
         builder.setProperty(ExtractionConfigProperty.IMAGES_EXTRACTION, extensions.containsKey("images"));
         ExtractionConfigRegister.set(builder.buildConfiguration());
 
+
+        ExecutorService pool = Executors.newFixedThreadPool(iThreads);
+
+
+        ArrayList<File> oCurList = new ArrayList<File>();
         int i = 0;
         for (File pdf : files) {
-            Map<String, File> outputs = new HashMap<String, File>();
-            for (Map.Entry<String, String> entry : extensions.entrySet()) {
-                File outputFile = getOutputFile(pdf, entry.getValue());
-                if (override || !outputFile.exists()) {
-                    outputs.put(entry.getKey(), outputFile);
-                }
-            }
-            if (outputs.isEmpty()) {
-                i++;
-                continue;
-            }
-          
-            long start = System.currentTimeMillis();
-            float elapsed;
 
-            System.out.println("File processed: " + pdf.getPath());
+            oCurList.add(pdf);
 
-            ContentExtractor extractor = null;
-            try {
-                extractor = createContentExtractor(timeoutSeconds);
-          
-                InputStream in = new FileInputStream(pdf);
-                extractor.setPDF(in);
-                
-                if (outputs.containsKey("images")) {
-                    List<BxImage> images = extractor.getImages(outputs.get("images").getPath());
-                    FileUtils.forceMkdir(outputs.get("images"));
-                    for (BxImage image : images) {
-                        ImageIO.write(image.getImage(), "png", new File(image.getPath()));
-                    }
-                }
-                
-                if (outputs.containsKey("jats")) {
-                    Element jats;
-                    if (outputs.containsKey("images")) {
-                        jats = extractor.getContentAsNLM(outputs.get("images").getPath());
-                    } else {
-                        jats = extractor.getContentAsNLM(null);
-                    }
-                    XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
-                    DocType dt = new DocType("article", "-//NLM//DTD JATS (Z39.96) Journal Archiving and Interchange DTD v1.0 20120330//EN", "JATS-archivearticle1.dtd");
-                    FileUtils.writeStringToFile(outputs.get("jats"), outputter.outputString(dt), "UTF-8");
-                    FileUtils.writeStringToFile(outputs.get("jats"), "\n", "UTF-8", true);
-                    FileUtils.writeStringToFile(outputs.get("jats"), outputter.outputString(jats), "UTF-8", true);
-                }
-                
-                if (outputs.containsKey("trueviz")) {
-                    BxDocument doc = extractor.getBxDocumentWithSpecificLabels();
-                    BxDocumentToTrueVizWriter writer = new BxDocumentToTrueVizWriter();
-                    Writer fw = new OutputStreamWriter(new FileOutputStream(outputs.get("trueviz")), "UTF-8");
-                    writer.write(fw, Lists.newArrayList(doc), "UTF-8");
-                }
-                
-                if (outputs.containsKey("zones")) {
-                    Element text = extractor.getLabelledFullText();
-                    XMLOutputter outputter = new XMLOutputter(Format.getPrettyFormat());
-                    FileUtils.writeStringToFile(outputs.get("zones"), outputter.outputString(text), "UTF-8");
-                }
-                
-                if (outputs.containsKey("text")) {
-                    String text = extractor.getRawFullText();
-                    FileUtils.writeStringToFile(outputs.get("text"), text, "UTF-8");
-                }
-                
-                if (outputs.containsKey("bibtex")) {
-                    List<BibEntry> references = extractor.getReferences();
-                    for (BibEntry reference: references) {
-                        FileUtils.writeStringToFile(outputs.get("bibtex"), reference.toBibTeX(), "UTF-8", true);
-                        FileUtils.writeStringToFile(outputs.get("bibtex"), "\n", "UTF-8", true);
-                    }
-                }
-                
-            } catch (AnalysisException ex) {
-                printException(ex);
-            } catch (TransformationException ex) {
-                printException(ex);
-            } catch (TimeoutException ex) {
-                printException(ex);
-            } finally {
-                if (extractor != null) {
-                    extractor.removeTimeout();
-                }
-                long end = System.currentTimeMillis();
-                elapsed = (end - start) / 1000F;
+            if (oCurList.size() >= iBatchSize)
+            {
+                Task oTask = new Task(oCurList, extensions, timeoutSeconds);
+                pool.execute(oTask);
+
+                oCurList = new ArrayList<File>();
             }
-
-            i++;
-            int percentage = i * 100 / files.size();
-            System.out.println("Extraction time: " + Math.round(elapsed) + "s");
-            System.out.println("Progress: " + percentage + "% done (" + i + " out of " + files.size() + ")");
-            System.out.println("");
         }
+
+        if (oCurList.size() > 0)
+        {
+            Task oTask = new Task(oCurList, extensions, timeoutSeconds);
+            pool.execute(oTask);
+        }
+
+        pool.shutdown();
+
     }
 
     private static ContentExtractor createContentExtractor(Long timeoutSeconds)
