@@ -72,7 +72,7 @@ public class GrobidToMetadataConverter implements ModelToModelConverter<Element,
         xpath.addNamespace("x", source.getNamespaceURI());
         Element abstrakt = (Element)xpath.selectSingleNode(source);
         if (abstrakt != null) {
-            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt));
+            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt), null); // TODO lines was not null
         }
     }
     

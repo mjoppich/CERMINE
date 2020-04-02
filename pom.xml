@@ -143,8 +143,8 @@
     <properties>
         <slf4j.version>1.6.4</slf4j.version>
         <spring.version>3.1.0.RELEASE</spring.version>
+        <maven.test.skip>true</maven.test.skip>
     </properties>
-
     <scm>
         <connection>scm:git:git@github.com:CeON/CERMINE.git</connection>
         <developerConnection>scm:git:git@github.com:CeON/CERMINE.git</developerConnection>

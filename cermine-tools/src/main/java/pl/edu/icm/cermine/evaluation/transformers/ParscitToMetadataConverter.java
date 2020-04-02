@@ -57,7 +57,7 @@ public class ParscitToMetadataConverter implements ModelToModelConverter<Element
 
     private void convertAbstract(Element source, DocumentMetadata metadata) throws JDOMException {
         XPath xpath = XPath.newInstance("//algorithm[@name='ParsHed']//abstract");
-        metadata.setAbstrakt(selectWithMaxConfidence(xpath.selectNodes(source)));
+        metadata.setAbstrakt(selectWithMaxConfidence(xpath.selectNodes(source)), null); // TODO lines was not null
     }
     
     private void convertAuthors(Element source, DocumentMetadata metadata) throws JDOMException {

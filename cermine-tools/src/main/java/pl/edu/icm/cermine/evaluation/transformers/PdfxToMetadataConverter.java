@@ -61,7 +61,7 @@ public class PdfxToMetadataConverter implements ModelToModelConverter<Element, D
         XPath xpath = XPath.newInstance(".//abstract[@class='DoCO:Abstract']");
         Element abstrakt = (Element)xpath.selectSingleNode(source);
         if (abstrakt != null) {
-            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt));
+            metadata.setAbstrakt(XMLTools.getTextContent(abstrakt), null); // TODO lines was not null
         }
     }
 

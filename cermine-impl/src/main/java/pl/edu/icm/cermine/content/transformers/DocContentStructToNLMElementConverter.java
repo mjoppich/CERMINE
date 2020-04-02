@@ -170,7 +170,7 @@ public class DocContentStructToNLMElementConverter implements ModelToModelConver
                 String sThisTextBlock = XMLTools.removeInvalidXMLChars(paragraph.substring(lastParIndex, start));
                 //element.addContent(sThisTextBlock);
 
-                int iStartWordIdx = vPos2Word.get(lastParIndex)+1;
+                int iStartWordIdx = vPos2Word.get(lastParIndex);//+1; // FIXME why +1?
                 int iEndWordIdx = vPos2Word.get(start);
 
 
